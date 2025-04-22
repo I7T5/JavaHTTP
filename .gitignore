@@ -30,3 +30,7 @@ bin/
 
 ### Class ###
 *.docx
+
+### Collab ###
+*.idea
+*.iml
