@@ -4,6 +4,8 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.ArrayList;
 
 public class HTTPServer {
 
@@ -27,11 +29,47 @@ public class HTTPServer {
                 DataOutputStream dataOutputStream = new DataOutputStream(socket.getOutputStream());
                 DataInputStream dataInputStream = new DataInputStream(socket.getInputStream());
 
-                // Hint: use
-                //	String body = new String(Files.readAllBytes(file.toPath()), ENCODING);
-                // to read a file and convert it into a string
-                System.out.println("hi");
+                BufferedReader reader = new BufferedReader(new InputStreamReader(dataInputStream, ENCODING));
+                PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(dataOutputStream, ENCODING));
 
+                // Read and parse HTTP request
+                System.out.println("Reading and parsing HTTP request...");
+                String reqStartLine = reader.readLine();
+                String reqHostLine = reader.readLine();
+                // the rest of the lines doesn't really matter for our purposes...
+                String filepath = reqStartLine.split(" ")[1];
+                if (filepath.equals("/")) filepath = "/index.html";
+
+                // Find file and put together HTTP response pieces
+                System.out.println("Looking for file...");
+                String body;
+                String resMsg;
+                String contentType;
+                try {
+                    // Check if file exists
+                    File file = new File("server_folder" + filepath);
+                    System.out.println("File found: " + filepath);  // DEBUG
+                    // Hint: use
+                    // String body = new String(Files.readAllBytes(file.toPath()), ENCODING);
+                    // to read a file and convert it into a string
+                    body = new String(Files.readAllBytes(file.toPath()), ENCODING);  // convert file to string
+                    resMsg = "OK";
+                    contentType = Files.probeContentType(file.toPath());  // https://www.baeldung.com/java-file-mime-type
+                } catch (Exception e) {
+                    body = "File does not exist 404";
+                    resMsg = "404 Not Found";
+                    contentType = "text/html";
+                }
+
+                // Construct and send back HTTP response
+                System.out.println("Sending HTTP response...");
+                printWriter.write("HTTP/1.1 " + resMsg + CRLF);
+                printWriter.write("Content-Type: " + contentType + CRLF);
+                printWriter.write("Content-Length: " + body.length() + EOH);
+                printWriter.write(body);
+                printWriter.flush();
+
+                System.out.println("Sent HTTP response");
             }
 
         } catch (UnknownHostException e) {
