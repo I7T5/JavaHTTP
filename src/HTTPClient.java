@@ -1,12 +1,8 @@
 import java.io.*;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Arrays;
 
 public class HTTPClient {
 
@@ -42,6 +38,7 @@ public class HTTPClient {
             printWriter.print("Connection: close" + CRLF);
             printWriter.print("Accept: */*" + EOH);
             printWriter.flush();
+
             System.out.println("Sent HTTP request");
             System.out.println();
 
@@ -73,49 +70,68 @@ public class HTTPClient {
             for (String headerLine : headerLines) {
                 if (headerLine.toLowerCase().contains("content-length")) {
                     contentLength = Integer.parseInt(headerLine.split(": ")[1]);
+                    break;
                 }
             }
 
             // Read file
             System.out.println("Reading HTTP response body...");
             char[] buffer;
-            int numCharsRead;
 
-            // if content-length is not given in HTTP response header
+            // If content-length is not given in HTTP response header
             if (contentLength < 0) {
+                // Find contentLength
                 // HINT: If the content length is not given in the HTTP respond's header,
                 // use while((N_bytes = reader.read(buffer, 0, CHUNK_SIZE)) != -1 ){}
-                // ...
+                // the following is equivalent
                 contentLength = 0;
+                char[] tempBuffer = new char[CHUNK_SIZE];
                 while (true) {
-                    // grow array with every read until the end of file
-                    // TODO: deal with extra space in array
-                    buffer = new char[contentLength+CHUNK_SIZE];
-                    int n_chars = reader.read(buffer, 0, CHUNK_SIZE);  // assuming reader reads with memory
-                    if (n_chars == -1) break;
-                    contentLength += n_chars;
+                    int numCharsRead = reader.read(tempBuffer, contentLength, CHUNK_SIZE);  // assuming reader reads with memory
+                    //System.out.println("tempBuffer: " + new String(tempBuffer));
+                    System.out.println("numCharsRead: " + numCharsRead);
+                    if (numCharsRead == -1) break;
+                    contentLength += numCharsRead;
+                    // grow tempBuffer with every read until the end of file
+                    char[] bigBuffer = new char[contentLength+CHUNK_SIZE];
+                    System.arraycopy(tempBuffer, 0, bigBuffer, 0, contentLength);
+                    tempBuffer = bigBuffer;
                 }
+
+                // Copy content to buffer of length contentLength
+                buffer = new char[contentLength];
+                System.arraycopy(tempBuffer, 0, buffer, 0, contentLength);
+                //System.out.println("buffer: " + new String(buffer));
             } else {  // if content-length is given
                 buffer = new char[contentLength];
-                numCharsRead = reader.read(buffer);
-                System.out.println("Content-Length: " + contentLength + "; numCharsRead: " + numCharsRead);  // DEBUG
-
-                // TODO: Content-Length: 125540; numCharsRead: 32768
-                // real content-length == 124667, as found with python len...
-
+                int totalCharsRead = 0;
+                // read the file fully (address propagation delay)
+                while (totalCharsRead < contentLength) {
+                    int numCharsLeft = contentLength - totalCharsRead;
+                    int numCharsRead = reader.read(buffer, totalCharsRead, Math.min(numCharsLeft, CHUNK_SIZE));  // avoid IndexOutOfBoundException
+                    if (numCharsRead == -1) break;
+                    totalCharsRead += numCharsRead;
+                    //System.out.println("numCharsRead: " + numCharsRead + "; totalCharsRead: " + totalCharsRead);
+                }
+                System.out.println("Content-Length: " + contentLength + "; totalCharsRead: " + totalCharsRead);
             }
 
-            // Convert char[] to String (Array.toString()) is in array formatting...)
+            System.out.println("content-length: " + contentLength + "; totalCharsRead: " + buffer.length);
             System.out.println("Saving HTTP response body...");
-            stringBuilder = new StringBuilder();
-            for (char c : buffer) {
-                // if (c == '\0') break;
-                stringBuilder.append(c);
-            }
-            String bodyStr = stringBuilder.toString();
+            //String bodyStr = new String(new String(buffer).getBytes(ENCODING), ENCODING);
+            String bodyStr = new String(buffer);  // concatenates chars; don't worry about ENCODING
+            //System.out.println("bodyStr: " + bodyStr);
 
             // Create / overwrite file with name passed as argument
-            if (filePath.isEmpty()) filePath = "index.html";
+            if (filePath.isEmpty()) {
+                filePath = "index.html";
+            } else if (filePath.contains("/")) {  // macOS
+                String[] pathArray = filePath.split("/");
+                filePath = pathArray[pathArray.length-1];
+            } else if (filePath.contains("\\")) { // Windows
+                String[] pathArray = filePath.split("\\\\");
+                filePath = pathArray[pathArray.length-1];
+            }
             File file = new File("client_folder", filePath);
             if (file.createNewFile()) System.out.println("Creating " + filePath);
             else System.out.println("Overwriting " + filePath);

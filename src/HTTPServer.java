@@ -34,9 +34,18 @@ public class HTTPServer {
 
                 // Read and parse HTTP request
                 System.out.println("Reading and parsing HTTP request...");
+
                 String reqStartLine = reader.readLine();
-                String reqHostLine = reader.readLine();
+                while (reqStartLine == null) {
+                    reqStartLine = reader.readLine();
+                }
+                // TODO: why is startLine null when we request from 127.0.0.1 more than once consecutively?
+                String line = reader.readLine();
+                while (line != null) line = reader.readLine();
+
+                //String reqHostLine = reader.readLine();
                 // the rest of the lines doesn't really matter for our purposes...
+                //System.out.println(reqStartLine);
                 String filepath = reqStartLine.split(" ")[1];
                 if (filepath.equals("/")) filepath = "/index.html";
 
@@ -52,7 +61,8 @@ public class HTTPServer {
                     // Hint: use
                     // String body = new String(Files.readAllBytes(file.toPath()), ENCODING);
                     // to read a file and convert it into a string
-                    body = new String(Files.readAllBytes(file.toPath()), ENCODING);  // convert file to string
+                    // the following is equivalent Intellij suggestion
+                    body = Files.readString(file.toPath(), ENCODING);  // convert file to string
                     resMsg = "OK";
                     contentType = Files.probeContentType(file.toPath());  // https://www.baeldung.com/java-file-mime-type
                 } catch (Exception e) {
