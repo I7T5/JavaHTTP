@@ -5,7 +5,6 @@ import java.net.UnknownHostException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.util.ArrayList;
 
 public class HTTPServer {
 
@@ -36,12 +35,13 @@ public class HTTPServer {
                 System.out.println("Reading and parsing HTTP request...");
 
                 String reqStartLine = reader.readLine();
+                System.out.println(reqStartLine);
                 while (reqStartLine == null) {
                     reqStartLine = reader.readLine();
                 }
                 // TODO: why is startLine null when we request from 127.0.0.1 more than once consecutively?
-                String line = reader.readLine();
-                while (line != null) line = reader.readLine();
+//                String line = reader.readLine();
+//                while (line != null) line = reader.readLine();
 
                 //String reqHostLine = reader.readLine();
                 // the rest of the lines doesn't really matter for our purposes...
@@ -73,10 +73,11 @@ public class HTTPServer {
 
                 // Construct and send back HTTP response
                 System.out.println("Sending HTTP response...");
-                printWriter.write("HTTP/1.1 " + resMsg + CRLF);
-                printWriter.write("Content-Type: " + contentType + CRLF);
-                printWriter.write("Content-Length: " + body.length() + EOH);
-                printWriter.write(body);
+                printWriter.print("HTTP/1.1 " + resMsg + CRLF);
+                printWriter.print("Content-Type: " + contentType + CRLF);
+                printWriter.print("Connection: close" + CRLF);
+                printWriter.print("Content-Length: " + body.length() + EOH);
+                printWriter.print(body);
                 printWriter.flush();
 
                 System.out.println("Sent HTTP response");
